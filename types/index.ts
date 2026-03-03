@@ -3,9 +3,14 @@ export interface Course {
   title: string;
   description: string;
   instructor: string;
+  instructor_name?: string;
+  instructor_avatar?: string;
   price: number;
   image: string;
   category: string;
+  category_name?: string;
+  category_icon?: string;
+  category_color?: string;
   lessons: Lesson[];
   rating: number;
   students: number;
@@ -15,7 +20,7 @@ export interface Lesson {
   id: string;
   title: string;
   duration: string;
-  type: 'video' | 'quiz' | 'assignment';
+  type: 'video' | 'quiz' | 'assignment' | 'VIDEO' | 'QUIZ' | 'ASSIGNMENT';
 }
 
 export interface Category {
@@ -23,5 +28,5 @@ export interface Category {
   name: string;
   icon: string;
   color: string;
+  course_count?: number;
 }
-

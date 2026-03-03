@@ -1,16 +1,62 @@
 import HeroSection from '@/components/HeroSection';
 import CourseCard from '@/components/CourseCard';
-import { courses, categories } from '@/lib/mock-data';
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
+import db from '@/lib/db';
+import { RowDataPacket } from 'mysql2';
+import { Course, Category } from '@/types';
 
-export default function Home() {
-  const featuredCourses = courses.slice(0, 6);
+async function getFeaturedCourses(): Promise<Course[]> {
+  try {
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT c.*, cat.name as category_name, cat.icon as category_icon, cat.color as category_color,
+              u.name as instructor_name, u.avatar as instructor_avatar
+       FROM courses c
+       JOIN categories cat ON c.category_id = cat.id
+       JOIN users u ON c.instructor_id = u.id
+       WHERE c.published = TRUE
+       ORDER BY c.students DESC
+       LIMIT 6`
+    );
+
+    // Get lessons for each course
+    for (const row of rows) {
+      const [lessons] = await db.execute<RowDataPacket[]>(
+        "SELECT * FROM lessons WHERE course_id = ? ORDER BY sort_order ASC",
+        [row.id]
+      );
+      row.lessons = lessons;
+      row.category = row.category_name;
+      row.instructor = row.instructor_name;
+    }
+
+    return rows as unknown as Course[];
+  } catch {
+    return [];
+  }
+}
+
+async function getCategories(): Promise<Category[]> {
+  try {
+    const [rows] = await db.execute<RowDataPacket[]>(
+      "SELECT * FROM categories ORDER BY name ASC"
+    );
+    return rows as unknown as Category[];
+  } catch {
+    return [];
+  }
+}
+
+export default async function Home() {
+  const [featuredCourses, categories] = await Promise.all([
+    getFeaturedCourses(),
+    getCategories(),
+  ]);
 
   return (
     <div>
       <HeroSection />
-      
+
       {/* Featured Courses */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -69,4 +115,3 @@ export default function Home() {
     </div>
   );
 }
-

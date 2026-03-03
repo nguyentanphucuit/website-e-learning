@@ -1,18 +1,54 @@
 'use client';
 
-import { use } from 'react';
-import { courses } from '@/lib/mock-data';
+import { use, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, Star, CheckCircle2, PlayCircle, FileText, HelpCircle } from 'lucide-react';
+import { Clock, Users, Star, PlayCircle, FileText, HelpCircle } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Course } from '@/types';
 
 export default function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const course = courses.find(c => c.id === id);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCourse() {
+      try {
+        const res = await fetch(`/api/courses/${id}`);
+        if (!res.ok) throw new Error('Not found');
+        const data = await res.json();
+        // Map DB fields
+        data.category = data.category_name || data.category;
+        data.instructor = data.instructor_name || data.instructor;
+        setCourse(data);
+      } catch {
+        setCourse(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCourse();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="py-12 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <div className="h-96 bg-gray-100 rounded-2xl animate-pulse" />
+              <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+            </div>
+            <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -25,21 +61,12 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const handleEnroll = () => {
-    // Get enrolled courses from localStorage
-    const enrolled = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
-    
-    // Check if already enrolled
-    if (!enrolled.find((c: { id: string }) => c.id === course.id)) {
-      enrolled.push(course);
-      localStorage.setItem('enrolledCourses', JSON.stringify(enrolled));
-    }
-    
-    router.push('/dashboard');
+  const handleBuy = () => {
+    router.push(`/checkout?courseId=${course.id}`);
   };
 
   const getLessonIcon = (type: string) => {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'video':
         return <PlayCircle className="h-5 w-5 text-blue-500" />;
       case 'quiz':
@@ -92,7 +119,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {course.lessons.map((lesson, index) => (
+                  {course.lessons.map((lesson) => (
                     <div
                       key={lesson.id}
                       className="flex items-center space-x-4 p-4 rounded-xl border hover:bg-accent/50 transition-colors cursor-pointer"
@@ -105,7 +132,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                           <h4 className="font-semibold">{lesson.title}</h4>
                           <span className="text-sm text-muted-foreground">{lesson.duration}</span>
                         </div>
-                        <p className="text-sm text-muted-foreground capitalize">{lesson.type}</p>
+                        <p className="text-sm text-muted-foreground capitalize">{lesson.type.toLowerCase()}</p>
                       </div>
                     </div>
                   ))}
@@ -122,10 +149,10 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                   ${course.price}
                 </div>
                 <Button
-                  onClick={handleEnroll}
+                  onClick={handleBuy}
                   className="w-full cursor-pointer bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-lg py-6"
                 >
-                  Enroll Now
+                  Buy Now — ${course.price}
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -141,7 +168,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                     <Users className="h-5 w-5" />
                     <span>Students</span>
                   </div>
-                  <span className="font-semibold">{course.students.toLocaleString()}</span>
+                  <span className="font-semibold">{Number(course.students).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b">
                   <div className="flex items-center space-x-2 text-muted-foreground">
@@ -172,4 +199,3 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
     </div>
   );
 }
-

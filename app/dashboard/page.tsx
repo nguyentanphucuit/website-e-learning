@@ -5,26 +5,50 @@ import { Course } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookOpen, Clock, Users, Award, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BookOpen, Clock, Users, Award, ArrowRight, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
 
   useEffect(() => {
-    // Load enrolled courses from localStorage
-    if (typeof window !== 'undefined') {
-      const enrolled = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
-      setEnrolledCourses(enrolled);
+    if (!authLoading && !user) {
+      router.push('/login');
     }
-  }, []);
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (user) {
+      // Load enrolled courses from localStorage (can be upgraded to API later)
+      if (typeof window !== 'undefined') {
+        const enrolled = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+        setEnrolledCourses(enrolled);
+      }
+      setLoadingCourses(false);
+    }
+  }, [user]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <div className="py-12 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            My Dashboard
+          <h1 className="text-4xl sm:text-5xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Welcome back, {user.name}!
           </h1>
           <p className="text-muted-foreground">
             Continue learning and track your progress
@@ -53,6 +77,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-muted-foreground mb-1">Hours Studied</p>
                   <p className="text-3xl font-bold">
                     {enrolledCourses.reduce((acc, course) => {
+                      if (!course.lessons) return acc;
                       const totalMinutes = course.lessons.reduce((sum, lesson) => {
                         const [hours, minutes] = lesson.duration.split(':').map(Number);
                         return sum + hours * 60 + minutes;
@@ -85,7 +110,13 @@ export default function DashboardPage() {
         {/* Enrolled Courses */}
         <div>
           <h2 className="text-2xl font-bold mb-6">My Courses</h2>
-          {enrolledCourses.length > 0 ? (
+          {loadingCourses ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : enrolledCourses.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {enrolledCourses.map((course) => (
                 <Card key={course.id} className="group overflow-hidden hover:shadow-xl transition-all duration-300 rounded-2xl shadow-md border-0">
@@ -110,11 +141,11 @@ export default function DashboardPage() {
                     <div className="flex items-center space-x-4 text-xs text-muted-foreground mb-4">
                       <div className="flex items-center space-x-1">
                         <Clock className="h-4 w-4" />
-                        <span>{course.lessons.length} lessons</span>
+                        <span>{course.lessons?.length || 0} lessons</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Users className="h-4 w-4" />
-                        <span>{course.students.toLocaleString()} students</span>
+                        <span>{Number(course.students).toLocaleString()} students</span>
                       </div>
                     </div>
                     <Link href={`/courses/${course.id}`}>
@@ -149,4 +180,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
